@@ -48,7 +48,7 @@ module Actors
 const version = v"0.2.5"
 
 using ActorInterfaces.Classic
-using Distributed, .Threads, Serialization, Dates, Proquint
+using Distributed, .Threads, Serialization, Dates
 import ActorInterfaces.Classic: onmessage
 import Base: structdiff
 

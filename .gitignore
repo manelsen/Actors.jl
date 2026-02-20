@@ -7,3 +7,10 @@
 /tmp
 docs/build
 docs/Manifest.toml
+
+# Development notes
+ANALISE_COMPLETA.md
+CLAUDE.md
+ESTRATEGIAS_PERFORMANCE.md
+PLANO_MODERNIZACAO.md
+session-*.md

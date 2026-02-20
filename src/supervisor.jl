@@ -83,7 +83,8 @@ function restart_child!(c::Child, act::_ACT)
     update!(lk, c.lk, s=:self)
 end
 function restart_child!(c::Child, ::Nothing)
-    c.lk[] = Threads.@spawn c.start()
+    start = c.start
+    c.lk[] = Threads.@spawn Base.invokelatest(start)
     _supervisetask(c.lk, self(), timeout=c.info.timeout, pollint=c.info.pollint)
 end
 

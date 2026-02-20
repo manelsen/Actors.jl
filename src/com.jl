@@ -13,6 +13,7 @@ function _send!(chn::Channel, msg)
             wait(chn.cond_put)
         end
         push!(chn.data, msg)
+        @atomic :monotonic chn.n_avail_items += 1  # keep isempty/isready consistent (Julia 1.9+)
         # notify all, since some of the waiters may be on a "fetch" call.
         notify(chn.cond_take, nothing, true, false)
     finally

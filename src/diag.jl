@@ -56,7 +56,7 @@ Diagnose an actor, get a state or stacktrace.
 - `check::Symbol`: requested information,
 	- `:state`: returns `:ok` if the actor is running, 
 	- `:task`: returns the current actor task,
-	- `:tid`: current actor task encoded as a proquint string,
+	- `:tid`: current actor task encoded as an 8-char hex string,
 	- `:pid`: process identifier number,
 	- `:act`: actor `_ACT` variable,
 	- `:info`: actor [`Info`](@ref),

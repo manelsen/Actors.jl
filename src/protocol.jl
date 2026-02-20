@@ -17,12 +17,12 @@ end
 # Become
 onmessage(A::_ACT, msg::Become) = A.bhv = _current(msg.x)
 function onmessage(A::_ACT, msg::Call)
-    A.res = A.bhv(msg.x...)
+    A.res = Base.invokelatest(A.bhv, msg.x...)
     send(msg.from, Response(A.res, A.self))
 end
 
 # Cast
-onmessage(A::_ACT, msg::Cast) = A.res = A.bhv(msg.x...)
+onmessage(A::_ACT, msg::Cast) = A.res = Base.invokelatest(A.bhv, msg.x...)
 
 # Diag
 function onmessage(A::_ACT, msg::Diag)
@@ -87,4 +87,4 @@ end
 onmessage(A::_ACT, msg::Term) = A.term = _current(msg.x)
 
 # dispatch on Request or user defined Msg
-onmessage(A::_ACT, msg::Msg) = A.res = A.bhv(msg)
+onmessage(A::_ACT, msg::Msg) = A.res = Base.invokelatest(A.bhv, msg)

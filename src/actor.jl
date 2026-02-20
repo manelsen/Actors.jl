@@ -58,8 +58,9 @@ onmessage(A::_ACT, mode, msg) = onmessage(A, msg)
 # Note: when an actor task starts, it must put its _ACT
 #       status variable into the task local storage.
 #
-function _act(ch::Channel)
+function _act(ch::Channel, lk::Union{Nothing,Link}=nothing)
     A = _ACT()
+    isnothing(lk) || (A.self = lk)
     task_local_storage("_ACT", A)
     while true
         msg = take!(ch)
@@ -112,28 +113,31 @@ function Classic.spawn( f, args...; pid=nothing, thrd=false,
     if isnothing(pid)
         lk = newLink(32)
         if thrd > 0 && thrd in 1:nthreads()
-            @threads for i in 1:nthreads()
-                if i == thrd 
-                    t = @async _act(lk.chn)
-                    isnothing(taskref) || (taskref[] = t)
-                    bind(lk.chn, t)
-                end
-            end
+            t = Task(() -> _act(lk.chn, lk))
+            t.sticky = true
+            # Pin task to the requested thread before scheduling (Julia 1.9+).
+            ccall(:jl_set_task_tid, Cvoid, (Any, Cint), t, thrd - 1)
+            isnothing(taskref) || (taskref[] = t)
+            bind(lk.chn, t)
+            schedule(t)
         else
-            t = Task(() -> _act(lk.chn))
+            t = Task(() -> _act(lk.chn, lk))
             isnothing(taskref) || (taskref[] = t)
             pid == 1 && (t.sticky = sticky)
             bind(lk.chn, t)
             schedule(t)
         end
         lk.mode = mode
-        remote && (lk = _rlink(lk))
+        if remote
+            lk = _rlink(lk)
+            put!(lk.chn, Update(:self, lk))   # update actor with remote-channel link
+        end
     else
         lk = Link(RemoteChannel(() -> Channel(_act, 32), pid),
                   pid, mode)
         f = _rlink(f)
+        put!(lk.chn, Update(:self, lk))       # remote worker: self not known at _act startup
     end
-    put!(lk.chn, Update(:self, lk))
     mode == :default || put!(lk.chn, Update(:mode, mode))
     become!(lk, f)
     return lk
