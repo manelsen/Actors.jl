@@ -5,16 +5,14 @@
 
 function _send!(chn::Channel, msg)
     Base.check_channel_state(chn)
-    # reimplements Base.put_buffered with a modification
     lock(chn)
     try
-        while length(chn.data) ≥ chn.sz_max  # modification: allow buffer overflow
+        while length(chn.data) ≥ chn.sz_max
             Base.check_channel_state(chn)
             wait(chn.cond_put)
         end
-        push!(chn.data, msg)
-        @atomic :monotonic chn.n_avail_items += 1  # keep isempty/isready consistent (Julia 1.9+)
-        # notify all, since some of the waiters may be on a "fetch" call.
+        @inbounds push!(chn.data, msg)
+        @atomic :monotonic chn.n_avail_items += 1
         notify(chn.cond_take, nothing, true, false)
     finally
         unlock(chn)
@@ -99,8 +97,32 @@ previous order.
 receive(lk::L; kwargs...) where L<:Link = receive(lk, nothing, nothing; kwargs...)
 receive(lk::L, from::Link; kwargs...) where L<:Link = receive(lk, nothing, from; kwargs...)
 receive(lk::L, M::Type{<:Msg}; kwargs...) where L<:Link = receive(lk, M, nothing; kwargs...)
+
+function _receive_simple(lk::Link, timeout::Real)
+    timeout == 0 && !isready(lk.chn) && return Timeout()
+    if timeout == Inf
+        msg = take!(lk.chn)
+    elseif timeout > 0
+        deadline = time() + timeout
+        msg = Timeout()
+        while !isready(lk.chn)
+            yield()
+            time() >= deadline && break
+        end
+        isready(lk.chn) && (msg = take!(lk.chn))
+    else
+        isready(lk.chn) ? take!(lk.chn) : Timeout()
+    end
+    return msg
+end
+
 function receive(lk::L1, M::MT, from::L2; 
     timeout::Real=5.0) where {L1<:Link,MT<:Union{Nothing,Type{<:Msg}},L2<:Union{Nothing,Link}}
+
+    if isnothing(M) && isnothing(from)
+        msg = _receive_simple(lk, timeout)
+        return applicable(length, msg) && length(msg) == 1 ? first(msg) : msg
+    end
 
     done = [false]
     fetched = [false]
