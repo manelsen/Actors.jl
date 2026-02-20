@@ -79,44 +79,55 @@ abstract type Connection end
 
 """
 ```
-_ACT
+_ACT{B,R,S,U}
 ```
-Internal actor status variable.
+Internal actor status variable with type parameters for improved performance.
+
+# Type Parameters
+
+- `B`: behavior type (for `bhv`, `init`, `term`)
+- `R`: result type (for `res`)
+- `S`: state type (for `sta`)
+- `U`: user type (for `usr`)
 
 # Fields
 
 1. `mode::Symbol`: the actor mode,
-2. `bhv::Any`:  behavior - a callable object,
-3. `init::Any`: initialization - a callable object, 
-4. `term::Any`: termination - a callable object,
-5. `self::Link`: the actor's address,
-6. `name::Union{Nothing,Symbol}`: the actor's registered name.
-7. `res::Any`: the result of the last behavior execution,
-8. `sta::Any`: a variable for representing state,
-9. `usr::Any`: user variable for plugging in something,
-10. `conn::Array{Connection,1}`: connected actors.
+2. `bhv::B`:  behavior - a callable object,
+3. `init::Union{Nothing,B}`: initialization - a callable object, 
+4. `term::Union{Nothing,B}`: termination - a callable object,
+5. `self::Union{Nothing,Link}`: the actor's address,
+6. `name::Union{Nothing,Symbol}`: the actor's registered name,
+7. `res::R`: the result of the last behavior execution,
+8. `sta::S`: a variable for representing state,
+9. `usr::U`: user variable for plugging in something,
+10. `conn::Vector{Connection}`: connected actors.
 
 see also: [`Bhv`](@ref), [`Link`](@ref)
 """
-mutable struct _ACT
+mutable struct _ACT{B,R,S,U}
     mode::Symbol
-    bhv::Any
-    init::Any
-    term::Any
+    bhv::B
+    init::Union{Nothing,B}
+    term::Union{Nothing,B}
     self::Union{Nothing,Link}
     name::Union{Nothing,Symbol}
-    res::Any
-    sta::Any
-    usr::Any
-    conn::Array{Connection,1}
+    res::R
+    sta::S
+    usr::U
+    conn::Vector{Connection}
 end
+
+const _ACTAny = _ACT{Any,Any,Any,Any}
 
 """
     _ACT(mode=:default)
 
-Return a actor variable `_ACT`.
+Return a actor variable `_ACT` with type parameters defaulting to `Any`.
 """
-_ACT(mode=:default) = _ACT(mode, Bhv(+), fill(nothing, 7)..., Connection[])
+_ACT(mode::Symbol=:default) = _ACT{Any,Any,Any,Any}(
+    mode, Bhv(+), nothing, nothing, nothing, nothing, nothing, nothing, nothing, Connection[]
+)
 
 """
 ## Actor information
@@ -125,7 +136,7 @@ _ACT(mode=:default) = _ACT(mode, Bhv(+), fill(nothing, 7)..., Connection[])
 - `pid::Int`: process identifier,
 - `thrd::Int`: thread,
 - `task::Task`: actor task address,
-- `tid::String`: proquint identifier based on task address,
+- `tid::String`: hex identifier based on task address,
 - `name::Union{Nothing,Symbol}`: name under which the actor is
     registered, `nothing` if not registered.
 """

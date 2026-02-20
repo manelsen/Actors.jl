@@ -16,6 +16,7 @@
 include("benchmarks.jl")
 
 using BenchmarkTools
+import BenchmarkTools: leaves
 
 const BASELINE_FILE = joinpath(@__DIR__, "baseline.json")
 const mode = length(ARGS) > 0 ? ARGS[1] : "run"
