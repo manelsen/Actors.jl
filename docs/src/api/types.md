@@ -14,8 +14,24 @@ Link
 Bhv
 ```
 
-You can create your own message types with
+### Message Types
 
 ```@docs
 @msg
 ```
+
+### Special Behavior Types
+
+```@docs
+StateMachine
+EventManager
+EventHandler
+```
+
+### Priority Message Types
+
+```@docs
+PriorityMsg
+PriorityChannel
+```
+

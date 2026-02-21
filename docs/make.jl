@@ -42,12 +42,13 @@ makedocs(
                 ],
             "manual/infrastructure.md",
             ],
-        "Reference" => [
+            "Reference" => [
             "API" => [
                 "api/api.md",
                 "api/types.md",
                 "api/starting.md",
                 "api/primitives.md",
+                "api/priority.md",
                 "api/comm.md",
                 "api/user_api.md",
                 "api/registry.md",
@@ -70,8 +71,12 @@ makedocs(
                 "reference/interface.md",
             ],
             "reference/glossary.md",
+            ],
+        "Release Notes" => [
+            "release-notes/v0.3.0.md",
         ]
     ]
+)
 )
 
 deploydocs(
