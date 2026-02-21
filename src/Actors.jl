@@ -4,7 +4,7 @@
 #
 """
 `Actors` implements the classical Actor Model and is 
-based on the primitives defined in `ActorInterfaces.Classic`. 
+based on primitives defined in `ActorInterfaces.Classic`. 
 It provides:
 
 - basic primitives for creating actors,
@@ -26,7 +26,7 @@ It provides:
     - supervisors: [`supervisor`](@ref), [`supervise`](@ref), 
         [`unsupervise`](@ref), [`start_actor`](@ref), 
         [`start_task`](@ref), [`count_children`](@ref), 
-        [`which_children`](@ref), [`terminate_child`](@ref), 
+        [`which_children`](@ref), [`terminate_child`](@ref),
 - an actor registry: [`register`](@ref), [`unregister`](@ref), 
     [`whereis`](@ref), [`registered`](@ref)
 
@@ -72,18 +72,20 @@ include("utils.jl")
 include("statem.jl")
 include("event.jl")
 include("priority.jl")
-
 export  
     # common types
     Msg, @msg, Request, Response, Link, Bhv,
     # -------------------------------
     # exported interface primitives
-    send,  
-    # the following ones must be imported explicitly:
+    send,
+    # following ones must be imported explicitly:
     # - newLink, 
     # - spawn,
     # - _ACT,
     # - onmessage
+    # -------------------------------
+    # ergonomic macros
+    @spawn,
     # -------------------------------
     # API primitives
     receive, request, send_after,
