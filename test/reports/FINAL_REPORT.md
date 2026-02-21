@@ -2,7 +2,7 @@
 
 ## Resumo Executivo
 
-Este relatório documenta a análise completa da biblioteca Actors.jl através de testes baseados em personas, cobrindo casos de uso complexos, edge cases, testes de stress e análise de vulnerabilidades. Durante os testes, uma **condição de corrida crítica foi identificada e corrigida** na camada de comunicação.
+Este relatório documenta a análise completa da biblioteca Actors.jl através de testes baseados em personas, cobrindo casos de uso complexos, edge cases, testes de stress e análise de vulnerabilidades. Durante os testes, **várias issues foram identificadas** e estão documentadas abaixo.
 
 ---
 
@@ -29,69 +29,77 @@ Criamos 5 personas representando diferentes perfis de usuários especialistas:
 
 ---
 
-## 2. Bug Crítico Corrigido
+## 2. Issues Identificadas
 
-### 2.1 Condição de Corrida na Camada de Comunicação
+### 2.1 Condição de Corrida Crítica: Restart de Supervisores
 
-**Problema Identificado:**
-Quando um ator crasha e está sendo reiniciado pelo supervisor, existe uma janela onde:
-1. Canal antigo é fechado
+**Status:** NÃO CORRIGIDO - Requer solução arquitetural
+
+**Problema:**
+Quando um ator crasha e está sendo reiniciado pelo supervisor, existe uma janela de tempo onde:
+1. Canal antigo é fechado (quando a task falha)
 2. Cliente tenta enviar mensagem
-3. Mensagem é perdida ou exceção lançada
+3. `InvalidStateException("Channel is closed.", :closed)` é lançada
 4. Supervisor cria novo ator com novo canal
-5. Link é atualizado com novo canal
+5. Link é atualizado com novo canal (mutável, então a referência funciona)
 
-**Comportamento Original:**
+**Análise:**
+```
+Timeline:
+├─ T0: Actor recebe mensagem :crash e lança erro
+├─ T1: Task do actor falha, channel é fechado (bound to task)
+├─ T2: Supervisor recebe Exit message
+├─ T3: Supervisor reinicia actor (cria novo channel)
+├─ T4: Supervisor atualiza c.lk.chn = novo_channel
+│
+└─ Problema: Entre T1 e T4, qualquer send() falha!
+```
+
+**Evidência nos testes:**
+```
+Banking System - rapid failover cycles: Error During Test
+  TaskFailedException
+  nested task error: Bank system crash!
+```
+
+**Por que um "fix" simples de retry não é adequado:**
+- Retry no nível de `send()` é um paliativo que mascara o problema
+- A solução correta requer mudança arquitetural no supervisor/actor
+- Opções possíveis:
+  1. Actor não fechar channel imediatamente, aguardar sinal do supervisor
+  2. Supervisor atualizar channel antes de fechar o antigo
+  3. Usar um canal intermediário/buffer que sobrevive ao restart
+
+**Teste que revela o problema:**
+- `test/personas/test_mariana_distributed.jl:35-66` - "Banking System - rapid failover cycles"
+
+### 2.2 Teste `send_after` com Timing Problemático
+
+**Status:** PRE-EXISTENTE - Não causado por nossas mudanças
+
+**Problema:**
 ```julia
-# _send! original em com.jl
-function _send!(chn::Channel, msg)
-    Base.check_channel_state(chn)  # Lança exceção se fechado
-    # ... envia mensagem
-end
+# test/test_com.jl:123
+@test counter[] == 5  # Falha intermitentemente
+# Evaluated: 4 == 5
 ```
 
-**Sintomas:**
-- `InvalidStateException("Channel is closed.", :closed)` durante restart
-- `TaskFailedException` quando ator crasha
-- `Timeout()` retornado de `call()` durante restart do supervisor
-- Mensagens perdidas durante janela de restart
+O teste de `send_after` depende de timing e é flaky por natureza.
 
-**Correção Aplicada:**
-Adicionado mecanismo de retry automático em `src/com.jl`:
+### 2.3 Erro na Inicialização de Workers Distribuídos
 
-```julia
-function _send_with_retry!(lk::Link, msg; retries::Int=20, delay::Real=0.02)
-    for attempt in 1:retries
-        try
-            return _send!(lk.chn, msg)
-        catch e
-            if (e isa InvalidStateException && e.state == :closed) || e isa TaskFailedException
-                if attempt < retries
-                    sleep(delay)
-                else
-                    rethrow()
-                end
-            else
-                rethrow()
-            end
-        end
-    end
-end
+**Status:** PRE-EXISTENTE - Problema na inicialização
+
+**Problema:**
+Quando actors são carregados em workers remotos durante `Pkg.test()`, há um erro de deserialização:
+```
+InitError: On worker 2:
+Error deserializing a remote exception from worker 1
 ```
 
-**Por que Ambas Exceções São Retentadas:**
-- `InvalidStateException(:closed)`: Canal temporariamente fechado durante restart
-- `TaskFailedException`: Ator crashou mas supervisor pode reiniciá-lo
+Isso acontece em `src/init.jl:22` no `__init__()` quando workers tentam sincronizar com o registro principal.
 
-**Após Correção:**
-```
-Iteração 1: OK ✅ (result = test_1)
-Iteração 2: OK ✅ (result = test_2)
-Iteração 3: OK ✅ (result = test_3)
-...
-```
-
-### 2.2 Descoberta de Comportamento: `restore()` Retorna Tupla
+### 2.4 Descoberta de Comportamento: `restore()` Retorna Tupla
 
 **Descoberta Importante:**
 A função `checkpoint()` armazena argumentos como tupla, e `restore()` retorna essa tupla:
