@@ -69,6 +69,7 @@ include("registry.jl")
 include("init.jl")
 include("diag.jl")
 include("utils.jl")
+include("statem.jl")
 
 export  
     # common types
@@ -98,6 +99,8 @@ export
     delete_child, start_actor, start_task, terminate_child,
     # checkpointing
     checkpointing, checkpoint, restore, get_checkpoints,
-    save_checkpoints, load_checkpoints, @chkey
+    save_checkpoints, load_checkpoints, @chkey,
+    # state machine
+    StateMachine, statem_state, statem_data, statem
 
 end

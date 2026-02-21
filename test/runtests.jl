@@ -27,6 +27,7 @@ length(procs()) == 1 && addprocs(1)
 @testset "Registry"           begin include("test_registry.jl") end
 @safetestset "Utilities"      begin include("test_utils.jl") end
 @safetestset "Regression"     begin include("test_regression.jl") end
+@safetestset "StateMachine"   begin include("test_statem.jl") end
 
 println("running examples, output suppressed!")
 redirect_devnull() do
