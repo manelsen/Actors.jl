@@ -19,6 +19,24 @@ function _send!(chn::Channel, msg)
     end
     return msg
 end
+
+function _send_with_retry!(lk::Link, msg; retries::Int=20, delay::Real=0.02)
+    for attempt in 1:retries
+        try
+            return _send!(lk.chn, msg)
+        catch e
+            if (e isa InvalidStateException && e.state == :closed) || e isa TaskFailedException
+                if attempt < retries
+                    sleep(delay)
+                else
+                    rethrow()
+                end
+            else
+                rethrow()
+            end
+        end
+    end
+end
 function _send!(rch::RemoteChannel, msg)
     if rch.where != myid() 
         # change any local links in msg to remote links
@@ -38,10 +56,10 @@ Send a message to an actor `lk` (or registered `name`).
 `msg...` are communication parameters to the actor's behavior 
 function.
 """
-Classic.send(lk::Link, msg::Msg) = _send!(lk.chn, msg)
-Classic.send(name::Symbol, msg::Msg) = _send!(whereis(name).chn, msg)
-Classic.send(lk::Link, msg...) = _send!(lk.chn, msg)
-Classic.send(name::Symbol, msg...) = _send!(whereis(name).chn, msg)
+Classic.send(lk::Link, msg::Msg) = _send_with_retry!(lk, msg)
+Classic.send(name::Symbol, msg::Msg) = _send_with_retry!(whereis(name), msg)
+Classic.send(lk::Link, msg...) = _send_with_retry!(lk, msg)
+Classic.send(name::Symbol, msg...) = _send_with_retry!(whereis(name), msg)
 
 """
 ```
@@ -173,8 +191,23 @@ Send a message to an actor, block, receive and return the result.
 - `kwargs...`: `full` or `timeout`.
 
 """
-function request(lk::Link, msg::Msg; full=false, timeout::Real=5.0)
-    send(lk, msg)
+function request(lk::Link, msg::Msg; full=false, timeout::Real=5.0, retries::Int=20)
+    for attempt in 1:retries
+        try
+            _send!(lk.chn, msg)
+            break
+        catch e
+            if (e isa InvalidStateException && e.state == :closed) || e isa TaskFailedException
+                if attempt < retries
+                    sleep(0.02)
+                else
+                    return Timeout()
+                end
+            else
+                rethrow()
+            end
+        end
+    end
     resp = receive(msg.from, timeout=timeout)
     return resp isa Timeout || full ? resp : resp.y
 end
