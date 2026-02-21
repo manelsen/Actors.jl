@@ -1,0 +1,203 @@
+# FINAL_COUNTDOWN.md
+
+**Actors.jl Branch Performance Comparison**
+
+**Generated:** 2026-02-21
+**Benchmark Script:** Identical for all branches (see `benchmark_results/identical_benchmark.jl`)
+**Branches Compared:** GLM, Claude, Kimi-Muda
+
+---
+
+## Methodology
+
+All three branches were tested using **exactly the same benchmark script** to ensure fair comparison. Each benchmark:
+- Runs with adequate sample size (50-100 samples)
+- Reports median time in microseconds (μs)
+- Tests the same operations: spawn, request, cast, ping-pong
+
+**Lower values = Better performance**
+
+---
+
+## Results
+
+### 1. Spawn Performance (μs)
+
+Time to create and destroy an actor.
+
+| Branch | Time (μs) | Relative |
+|--------|-----------|----------|
+| Claude | 1.18 | 1.00x |
+| GLM | 1.62 | 1.37x |
+| Kimi-Muda | 2.10 | 1.78x |
+
+**Winner:** Claude (27% faster than GLM, 44% faster than Kimi-Muda)
+
+---
+
+### 2. Single Request Latency (μs)
+
+Time for one request/response cycle.
+
+| Branch | Time (μs) | Relative |
+|--------|-----------|----------|
+| Claude | 5.28 | 1.00x |
+| Kimi-Muda | 5.51 | 1.04x |
+| GLM | 6.04 | 1.14x |
+
+**Winner:** Claude (13% faster than GLM)
+
+---
+
+### 3. Ping-Pong Latency (μs)
+
+One actor sending to another.
+
+**Single ping-pong:**
+
+| Branch | Time (μs) | Relative |
+|--------|-----------|----------|
+| Claude | 5.29 | 1.00x |
+| Kimi-Muda | 5.42 | 1.02x |
+| GLM | 6.07 | 1.15x |
+
+**Winner:** Claude (13% faster than GLM)
+
+**100 ping-pongs:**
+
+| Branch | Time (μs) | Relative |
+|--------|-----------|----------|
+| Kimi-Muda | 178.0 | 1.00x |
+| GLM | 367.7 | 2.07x |
+| Claude | 468.4 | 2.63x |
+
+**Winner:** Kimi-Muda (52% faster than GLM, 62% faster than Claude)
+
+---
+
+### 4. Sequential Requests (μs)
+
+100 sequential requests to same actor.
+
+| Branch | Time (μs) | Relative |
+|--------|-----------|----------|
+| Kimi-Muda | 208.5 | 1.00x |
+| GLM | 363.8 | 1.75x |
+| Claude | 532.6 | 2.55x |
+
+**Winner:** Kimi-Muda (43% faster than GLM, 61% faster than Claude)
+
+---
+
+### 5. Throughput - Cast (μs)
+
+Fire-and-forget messages.
+
+**100 casts:**
+
+| Branch | Time (μs) | Relative |
+|--------|-----------|----------|
+| Kimi-Muda | 24.0 | 1.00x |
+| GLM | 36.5 | 1.52x |
+| Claude | 36.7 | 1.53x |
+
+**Winner:** Kimi-Muda (34% faster than GLM/Claude)
+
+**1000 casts:**
+
+| Branch | Time (μs) | Relative |
+|--------|-----------|----------|
+| Claude | 178.0 | 1.00x |
+| Kimi-Muda | 299.7 | 1.68x |
+| GLM | 323.2 | 1.82x |
+
+**Winner:** Claude (45% faster than Kimi-Muda, 45% faster than GLM)
+
+---
+
+## Overall Scoring
+
+Points per benchmark: 1st place = 3 pts, 2nd = 2 pts, 3rd = 1 pt
+
+| Branch | Spawn | Single | PP1 | PP100 | Seq | Cast100 | Cast1000 | TOTAL |
+|--------|-------|--------|-----|-------|-----|---------|----------|-------|
+| **Kimi-Muda** | 1 | 2 | 2 | 3 | 3 | 3 | 2 | **16** |
+| **Claude** | 3 | 3 | 3 | 1 | 1 | 1 | 3 | **15** |
+| **GLM** | 2 | 1 | 1 | 2 | 2 | 2 | 1 | **11** |
+
+---
+
+## Winner
+
+**Kimi-Muda** with 16 points
+
+---
+
+## Analysis
+
+### Kimi-Muda Strengths
+- Best at high-volume operations (100+ messages)
+- 52% faster ping-pong 100
+- 43% faster sequential 100
+- 34% faster cast 100
+
+### Claude Strengths
+- Best spawn time (27% faster)
+- Best single request latency (13% faster)
+- Best cast 1000 (45% faster)
+- Lowest latency for single operations
+
+### GLM Position
+- Middle ground in most benchmarks
+- Good balance but not best at anything
+- 11 points (last place)
+
+### Why Kimi-Muda Won
+- Response channel reuse (`_resp_chn`) dramatically reduces allocation overhead in request/response patterns
+- This optimization becomes more pronounced as message volume increases
+- While slightly slower at spawn and single operations, it dominates in throughput scenarios
+
+---
+
+## Recommendations
+
+### Scenario-Based Choice
+
+| Use Case | Recommended Branch | Reason |
+|----------|-------------------|--------|
+| High-throughput messaging | Kimi-Muda | 34-52% faster for volume |
+| Single request/response | Claude | 13-27% faster for single ops |
+| Many short-lived actors | Claude | Fastest spawn |
+| Mixed workload | Kimi-Muda | Best overall score |
+
+### Hybrid Approach
+
+Consider combining:
+- Claude's fast spawn
+- Kimi-Muda's response channel
+- GLM's batch processing
+
+This would give best of all worlds, as proposed in the "Turbo" architecture.
+
+---
+
+## Technical Summary
+
+| Branch | Key Innovation |
+|--------|----------------|
+| **GLM** | Type-stable _ACT{B,R,S,U}, batch processing, fast receive |
+| **Claude** | Simplified types, minimal overhead |
+| **Kimi-Muda** | Response channel reuse, reduced allocations |
+
+---
+
+## Conclusion
+
+**Kimi-Muda wins** the benchmark comparison with 16 points, demonstrating that response channel reuse provides significant benefits for high-volume actor communication. However, for applications with many short-lived actors or single-request patterns, **Claude** may be the better choice.
+
+The three approaches are **orthogonal** and could potentially be combined for a "best of all worlds" implementation.
+
+---
+
+*Generated by `run_all_benchmarks.jl`*
+*Using identical benchmark script: `benchmark_results/identical_benchmark.jl`*
