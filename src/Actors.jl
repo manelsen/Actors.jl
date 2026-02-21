@@ -71,6 +71,7 @@ include("diag.jl")
 include("utils.jl")
 include("statem.jl")
 include("event.jl")
+include("priority.jl")
 
 export  
     # common types
@@ -105,6 +106,9 @@ export
     StateMachine, statem_state, statem_data, statem,
     # event manager
     EventManager, EventHandler, add_handler, delete_handler, 
-    send_event, call_handler, which_handlers, event_manager
+    send_event, call_handler, which_handlers, event_manager,
+    # priority messages
+    PriorityMsg, PriorityChannel, send_priority, send_high, send_low,
+    newPriorityLink
 
 end
