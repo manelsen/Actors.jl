@@ -72,7 +72,7 @@ println("\n--- Querying handlers ---\n")
 println("Handlers: ", which_handlers(em))
 
 events = call_handler(em, :logger, :get_events)
-println("\nLogged events ($n): $n")
+println("\nLogged events ($(length(events))):")
 println("  ", events)
 
 counts = call_handler(em, :counter, :get_counts)
@@ -85,7 +85,7 @@ println("\nClearing logger...")
 call_handler(em, :logger, :clear)
 
 events_after = call_handler(em, :logger, :get_events)
-println("Events after clear: $n")
+println("Events after clear: $(length(events_after))")
 
 println("\nRemoving printer handler...")
 delete_handler(em, :printer)
