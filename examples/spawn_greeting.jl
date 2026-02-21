@@ -1,27 +1,30 @@
 #
 # Exemplo usando macro @spawn - Greeting Simplificado
 #
-# Versão simplificada usando @spawn em vez de spawn(Bhv)
-# Reduziu de 20 linhas para 9 linhas (55% de redução)
-#
 
 using Actors
 
-@spawn greeter "Hello" begin
-    msg -> "$msg, *!"  # Greeting server
-end
-
-@spawn sayhello greeter begin
-    msg -> request(greeter, msg)  # Greeting client
-end
-
 println("=== Greeting Example with @spawn macro ===")
-result = request(sayhello, "World")
-println(result)  # "World, *!"
-println()
 
-result = request(sayhello, "Kermit")
-println(result)  # "Kermit, *!"
+# Criar ator greeter
+@spawn greeter begin
+    (greeting, msg) -> string(greeting, ", ", msg, "!")
+end
 
-exit!(sayhello)
+# Criar ator sayhello que usa greeter
+@spawn sayhello begin
+    msg -> request(greeter, "Hello", msg)
+end
+
+# Testar
+result1 = request(sayhello, "World")
+println("request(sayhello, \"World\") = \"", result1, "\"")
+
+result2 = request(sayhello, "Kermit")
+println("request(sayhello, \"Kermit\") = \"", result2, "\"")
+
+# Limpeza
 exit!(greeter)
+exit!(sayhello)
+
+println("\n=== Exemplo completo! ===")

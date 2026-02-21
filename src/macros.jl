@@ -1,59 +1,80 @@
 #
-# Macro @spawn - Implementação Ergonômica (Versão Final Corrigida)
+# Macro @spawn - Implementação Ergonômica
 #
-# Implementação simplificada da macro @spawn baseada na especificação
+# Macro para criar atores com sintaxe simplificada
 #
 
 """
-    @spawn name [args...] [kwargs...] begin
-        # corpo do ator
+    @spawn [name] [args...] [kwargs...] begin
+        msg -> # processamento
     end
 
 Ergonomic macro for spawning actors with reduced verbosity.
 
 # Examples
 ```julia
+# Simple actor:
+lk = @spawn begin
+    msg -> msg * 2
+end
+request(lk, 5)  # returns 10
+
+# With name and args:
+@spawn greeter "Hello" begin
+    (greeting, msg) -> "\$greeting, \$msg!"
+end
+request(greeter, "World")  # returns "Hello, World!"
+
 # Before (verbose):
 greeter = spawn(Bhv(greet, "Hello"))
-sayhello = spawn(Bhv(hello, greeter))
 
 # After (ergonomic):
-@greet greeter "Hello"
-sayhello = @greet hello greeter
+@spawn greeter "Hello" begin
+    (greeting, msg) -> "\$greeting, \$msg!"
+end
 ```
-
-A macro:
-- Reduces verbosity by ~60-70% in typical use cases
-- Provides consistent syntax for actor creation
-- Supports positional args, keyword args, and inline behavior definition
-- Automatically captures `msg` variable for message handling
-- Returns last expression as response for request patterns
 """
 macro spawn(args...)
     # Analisar argumentos
     has_name = !isempty(args) && args[1] isa Symbol
-    name = has_name ? args[1] : gensym(:actor)
+    name = has_name ? args[1] : nothing
     
-    # Separar args e kwargs
-    spawn_args = has_name ? args[2:end] : args
-    kwargs = filter(x -> x isa Expr && x.head == :kw, spawn_args)
+    # Separar args posicionais e kwargs
+    if has_name
+        spawn_args = args[2:end-1]  # tudo exceto nome e corpo
+    else
+        spawn_args = args[1:end-1]  # tudo exceto corpo
+    end
     
-    # O corpo do ator é a expressão final (block ou begin...end)
+    # Separar kwargs (expressões com head = :kw ou :=)
+    kwargs = filter(x -> x isa Expr && (x.head == :kw || x.head == :(:=)), spawn_args)
+    pos_args = filter(x -> !(x isa Expr && (x.head == :kw || x.head == :(:=))), spawn_args)
+    
+    # O corpo do ator é a última expressão
     body = args[end]
     
-    # Criar símbolo para msg
-    msg_sym = gensym(:msg)
-    
-    # Criar o corpo do ator - Bhv(body) onde body é callable
-    # Usar nothing como o primeiro argumento (como em Bhv do types.jl)
+    # Escapar o corpo para que variáveis externas sejam capturadas
     actor_body = esc(body)
     
-    # Retornar a expressão para spawn(Bhv(...))
-    return quote
-        Actors.spawn(
-            Actors.Bhv(nothing, $actor_body),
-            $(spawn_args...),
-            $(kwargs...)
-        )
+    # Escapar argumentos posicionais e kwargs
+    escaped_pos_args = [esc(arg) for arg in pos_args]
+    escaped_kwargs = [esc(kw) for kw in kwargs]
+    
+    # Construir chamada para spawn(Bhv(...))
+    if has_name
+        # Se tem nome, criar variável no escopo do chamador
+        var_name = esc(name)
+        return quote
+            $var_name = Actors.spawn(
+                Actors.Bhv($actor_body, $(escaped_pos_args...); $(escaped_kwargs...))
+            )
+        end
+    else
+        # Se não tem nome, apenas retornar o link
+        return quote
+            Actors.spawn(
+                Actors.Bhv($actor_body, $(escaped_pos_args...); $(escaped_kwargs...))
+            )
+        end
     end
 end

@@ -4,13 +4,15 @@
 #
 """
 `Actors` implements the classical Actor Model and is 
-based on primitives defined in `ActorInterfaces.Classic`. 
+based on the primitives defined in `ActorInterfaces.Classic`. 
 It provides:
 
 - basic primitives for creating actors,
     sending messages to them and changing behavior:
     [`spawn`](@ref), [`send`](@ref), [`become`](@ref) 
     with `Addr` and [`self`](@ref),
+- ergonomic macros:
+    [`@spawn`](@ref) - simplified syntax for creating actors,
 - [`onmessage`](@ref), executed by an actor on a 
     received message,
 - a message protocol with predefined messages,
@@ -72,13 +74,14 @@ include("utils.jl")
 include("statem.jl")
 include("event.jl")
 include("priority.jl")
+include("macros.jl")
 export  
     # common types
     Msg, @msg, Request, Response, Link, Bhv,
     # -------------------------------
     # exported interface primitives
     send,
-    # following ones must be imported explicitly:
+    # the following ones must be imported explicitly:
     # - newLink, 
     # - spawn,
     # - _ACT,
