@@ -70,6 +70,7 @@ include("init.jl")
 include("diag.jl")
 include("utils.jl")
 include("statem.jl")
+include("event.jl")
 
 export  
     # common types
@@ -101,6 +102,9 @@ export
     checkpointing, checkpoint, restore, get_checkpoints,
     save_checkpoints, load_checkpoints, @chkey,
     # state machine
-    StateMachine, statem_state, statem_data, statem
+    StateMachine, statem_state, statem_data, statem,
+    # event manager
+    EventManager, EventHandler, add_handler, delete_handler, 
+    send_event, call_handler, which_handlers, event_manager
 
 end
