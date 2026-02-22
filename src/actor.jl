@@ -65,9 +65,19 @@ function _act(ch::Channel)
         msg = take!(ch)
         if isempty(A.conn)
             onmessage(A, Val(A.mode), msg)
+            while isready(ch)
+                msg = take!(ch)
+                onmessage(A, Val(A.mode), msg)
+                msg isa Exit && !_sticky(A) && return
+            end
         else
             try
                 onmessage(A, Val(A.mode), msg)
+            while isready(ch)
+                msg = take!(ch)
+                onmessage(A, Val(A.mode), msg)
+                msg isa Exit && !_sticky(A) && return
+            end
             catch exc
                 onerror(A, exc)
                 isnothing(A.name) || call(_REG, unregister, A.name)
