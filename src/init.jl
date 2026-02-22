@@ -17,10 +17,10 @@ function __init__()
             1, :root)
         update!(_ROOT, :system, s=:mode)
     else
-        tmp = spawn(()->Actors._REG, pid=1)
-        global _REG = call(tmp)
-        become!(tmp, ()->Actors._ROOT)
-        global _ROOT = call(tmp)
-        exit!(tmp)
+        # Fetch only the RemoteChannel (a plain Distributed type, always deserializable)
+        # and construct the Link locally, avoiding Actors-type deserialization
+        # during __init__ when the module is not yet registered.
+        global _REG = Link(remotecall_fetch(()->Actors._REG.chn, 1), 1, :registry)
+        global _ROOT = Link(remotecall_fetch(()->Actors._ROOT.chn, 1), 1, :root)
     end
 end
