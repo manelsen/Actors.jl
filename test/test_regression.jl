@@ -213,17 +213,19 @@ end
     # fast-path (no try-catch), onerror is never called, and the supervisor is
     # never notified of the failure → no restart ever happens.
     sleep(0.1)
-    old_chn = lk.chn
 
     # Trigger the failure
     cast(lk, :trigger)
 
-    # Wait for restart_child! to swap lk.chn to the new actor's channel.
-    # Polling with call() is unsafe here: the dead actor's channel stays open,
-    # repeated sends fill its 32-slot buffer, and the 33rd send deadlocks in
-    # _send!'s wait(cond_put). See benchmarks/benchmarks.jl for the full note.
-    timedwait(2.0; pollint=0.005) do
-        lk.chn !== old_chn
+    # Wait for the supervisor to restart the actor.
+    # With channel reuse the same channel is kept, so we poll until the actor
+    # responds correctly instead of watching for a channel swap.
+    timedwait(2.0; pollint=0.05) do
+        try
+            call(lk, 99; timeout=0.1) == 198
+        catch
+            false
+        end
     end
 
     # After restart the actor must work correctly

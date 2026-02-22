@@ -67,20 +67,54 @@ function shutdown_child(c::Child)
     end
 end
 
-function restart_child!(c::Child, act::_ACT)
-    if c.lk.chn isa RemoteChannel
-        lk = !isnothing(c.start) ? c.start(act.bhv, pid=c.lk.pid) :
-            !isnothing(act.init) ? spawn(act.init, pid=c.lk.pid) :
-                spawn(act.bhv, pid=c.lk.pid)
+function restart_child!(c::Child, act::_ACT, crashed::Bool=true)
+    if crashed && !(c.lk.chn isa RemoteChannel) && isnothing(c.start)
+        # ── CHANNEL REUSE PATH (crash restart) ──────────────────────────────
+        # The channel stays open after a crash (no bind), so we reuse it.
+        # Any messages queued during the crash window are preserved.
+        lk  = c.lk
+        ch  = lk.chn
+        sv  = self()
+        f   = !isnothing(act.init) ? _current(act.init) : _current(act.bhv)
+
+        # Drain messages accumulated during the crash window.
+        # Discard Exit signals (they were meant for the now-dead instance).
+        buffered = Any[]
+        while isready(ch)
+            msg = take!(ch)
+            msg isa Exit || push!(buffered, msg)
+        end
+
+        # Pre-load the channel so the new task starts with the right behavior
+        # and supervisor connection before processing any pending user messages.
+        _send!(ch, Become(f))
+        _send!(ch, Connect(Super(sv)))
+        for msg in buffered
+            _send!(ch, msg)
+        end
+
+        # Start a new Task on the existing, still-open Channel.
+        t = Task() do
+            _act(ch, lk)
+            close(ch)
+        end
+        schedule(t)
     else
-        lk = !isnothing(c.start) ? c.start(act.bhv) :
-            !isnothing(act.init) ? spawn(act.init) :
-                spawn(act.bhv)
+        # ── NEW CHANNEL PATH (remote / custom-start / shutdown-restart) ──────
+        if c.lk.chn isa RemoteChannel
+            lk = !isnothing(c.start) ? c.start(act.bhv, pid=c.lk.pid) :
+                !isnothing(act.init) ? spawn(act.init, pid=c.lk.pid) :
+                    spawn(act.bhv, pid=c.lk.pid)
+        else
+            lk = !isnothing(c.start) ? c.start(act.bhv) :
+                !isnothing(act.init) ? spawn(act.init) :
+                    spawn(act.bhv)
+        end
+        c.lk.chn = lk.chn
+        c.lk.pid = lk.pid
+        send(lk, Connect(Super(self())))
+        update!(lk, c.lk, s=:self)
     end
-    c.lk.chn = lk.chn
-    c.lk.pid = lk.pid
-    send(lk, Connect(Super(self())))
-    update!(lk, c.lk, s=:self)
 end
 function restart_child!(c::Child, ::Nothing)
     start = c.start
@@ -91,7 +125,7 @@ end
 function shutdown_restart_child!(c::Child)
     act = isnothing(c.start) ? diag(c.lk, :act) : nothing
     shutdown_child(c)
-    restart_child!(c, act)
+    restart_child!(c, act, false)    # false = shutdown (not crash), always use new channel
 end
 
 function must_restart(c::Child, reason)

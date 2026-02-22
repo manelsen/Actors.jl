@@ -1,36 +1,36 @@
-# Macro @spawn - Documentação
+# `@spawn` Macro
 
-## Visão Geral
+## Overview
 
-A macro `@spawn` fornece uma sintaxe ergonômica para criar atores com menos verbosidade.
+The `@spawn` macro provides ergonomic syntax for creating actors with less boilerplate.
 
-## Sintaxe
+## Syntax
 
 ```julia
 @spawn [name] [args...] [kwargs...] begin
-    msg -> # processamento
+    msg -> # processing
 end
 ```
 
-## Redução de Verbosidade
+## Verbosity Reduction
 
-| Exemplo | Antes | Depois | Redução |
-|---------|-------|--------|---------|
-| greeting.jl | 20 linhas | 9 linhas | **55%** |
-| stack.jl | 45 linhas | 18 linhas | **60%** |
-| pingpong.jl | 46 linhas | 23 linhas | **50%** |
+| Example | Before | After | Reduction |
+|---------|--------|-------|-----------|
+| greeting.jl | 20 lines | 9 lines | **55%** |
+| stack.jl | 45 lines | 18 lines | **60%** |
+| pingpong.jl | 46 lines | 23 lines | **50%** |
 
-## Exemplos
+## Examples
 
-### 1. Ator Simples
+### 1. Simple Actor
 
 ```julia
 using Actors
 
-# Antes (verboso):
+# Before (verbose):
 lk = spawn(Bhv(x -> x * 2))
 
-# Depois (ergonômico):
+# After (ergonomic):
 lk = @spawn begin
     msg -> msg * 2
 end
@@ -38,10 +38,10 @@ end
 request(lk, 5)  # => 10
 ```
 
-### 2. Ator com Nome
+### 2. Named Actor
 
 ```julia
-# O nome se torna uma variável no escopo atual
+# The name becomes a variable in the calling scope
 @spawn greeter begin
     (greeting, msg) -> string(greeting, ", ", msg, "!")
 end
@@ -49,10 +49,10 @@ end
 request(greeter, "Hello", "World")  # => "Hello, World!"
 ```
 
-### 3. Ator com Argumentos
+### 3. Actor with Arguments
 
 ```julia
-# Argumentos são passados para o behavior
+# Arguments are forwarded to the behavior
 @spawn multiplier 3 begin
     (factor, x) -> factor * x
 end
@@ -98,50 +98,50 @@ request(counter_actor, :inc)  # => 2
 request(counter_actor, :inc)  # => 3
 ```
 
-## Comparação com API Tradicional
+## Comparison with Traditional API
 
-### API Tradicional (spawn/Bhv)
+### Traditional API (spawn/Bhv)
 
 ```julia
-# Definir behavior
+# Define behavior
 function greet(greeting, msg)
     return string(greeting, ", ", msg, "!")
 end
 
-# Criar ator
+# Create actor
 greeter = spawn(Bhv(greet, "Hello"))
 
-# Usar
+# Use
 request(greeter, "World")
 ```
 
-### API Ergonômica (@spawn)
+### Ergonomic API (@spawn)
 
 ```julia
-# Criar ator diretamente
+# Create actor directly
 @spawn greeter begin
     (greeting, msg) -> string(greeting, ", ", msg, "!")
 end
 
-# Usar
+# Use
 request(greeter, "Hello", "World")
 ```
 
-## Características
+## Features
 
-- **Redução de 60-70% na verbosidade**
-- **Sintaxe mais declarativa**
-- **100% compatível com API existente**
-- **Sem overhead de performance**
-- **Suporta pattern matching via `msg`**
+- **60–70% reduction in boilerplate**
+- **More declarative syntax**
+- **100% compatible with the existing API**
+- **No performance overhead**
+- **Supports pattern matching via `msg`**
 
-## Limitações
+## Limitations
 
-- Não suporta `return` explícito (use última expressão)
-- Corpo deve ser uma função anônima `msg -> ...`
+- Does not support explicit `return` (use the last expression instead)
+- Body must be an anonymous function `msg -> ...`
 
-## Ver Também
+## See Also
 
-- `spawn` - API tradicional
-- `Bhv` - Behavior wrapper
-- `request`, `cast`, `send` - Funções de mensagem
+- `spawn` — traditional API
+- `Bhv` — behavior wrapper
+- `request`, `cast`, `send` — messaging functions

@@ -1,14 +1,14 @@
 #
-# Exemplo usando macro @spawn - Calculator
+# Example: @spawn macro - Calculator
 #
-# Demonstração de atores com múltiplos argumentos e pattern matching
+# Demonstrates actors with multiple arguments and pattern matching
 #
 
 using Actors
 
 println("=== Calculator Example with @spawn macro ===")
 
-# Ator calculadora com múltiplas operações
+# Calculator actor with multiple operations
 @spawn calculator begin
     msg -> begin
         if msg isa Tuple
@@ -30,13 +30,13 @@ println("=== Calculator Example with @spawn macro ===")
     end
 end
 
-# Testar operações
+# Test operations
 println("add(5, 3) = ", request(calculator, (:add, 5, 3)))
 println("sub(5, 3) = ", request(calculator, (:sub, 5, 3)))
 println("mul(5, 3) = ", request(calculator, (:mul, 5, 3)))
 println("div(15, 3) = ", request(calculator, (:div, 15, 3)))
 
-# Limpeza
+# Cleanup
 exit!(calculator)
 
-println("\n=== Exemplo completo! ===")
+println("\n=== Example complete! ===")

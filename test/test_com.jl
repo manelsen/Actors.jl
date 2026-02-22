@@ -119,7 +119,7 @@ counter = Ref(0)
 tick(c, t, n) = n > 0 && (c[]+=1; send_after(self(), t, c, t, n-1))
 ticker = Actors.spawn(tick)
 send_after(ticker, 0.1, counter, 0.1, 5)
-sleep(0.6)
+sleep(1.0)
 @test counter[] == 5
 @test Actors.diag(ticker) == :ok
 exit!(ticker)

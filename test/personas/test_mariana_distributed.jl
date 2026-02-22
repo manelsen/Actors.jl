@@ -457,12 +457,12 @@ end
         supervise(sv, actor, restart=:permanent)
         sleep(0.2)
         
-        # Enviar triggers até o supervisor morrer
+        # Send triggers until the supervisor shuts down
         for i in 1:5
             try
                 send(actor, :trigger)
             catch e
-                # Quando o supervisor morre, send lança TaskFailedException
+                # When the supervisor dies, send raises TaskFailedException
                 break
             end
             sleep(0.2)

@@ -1,12 +1,10 @@
 #
-# Macro @spawn - Implementação Ergonômica
-#
-# Macro para criar atores com sintaxe simplificada
+# @spawn macro - ergonomic actor creation
 #
 
 """
     @spawn [name] [args...] [kwargs...] begin
-        msg -> # processamento
+        msg -> # processing
     end
 
 Ergonomic macro for spawning actors with reduced verbosity.
@@ -35,34 +33,33 @@ end
 ```
 """
 macro spawn(args...)
-    # Analisar argumentos
     has_name = !isempty(args) && args[1] isa Symbol
     name = has_name ? args[1] : nothing
-    
-    # Separar args posicionais e kwargs
+
+    # Split positional args from keyword args
     if has_name
-        spawn_args = args[2:end-1]  # tudo exceto nome e corpo
+        spawn_args = args[2:end-1]  # everything except name and body
     else
-        spawn_args = args[1:end-1]  # tudo exceto corpo
+        spawn_args = args[1:end-1]  # everything except body
     end
-    
-    # Separar kwargs (expressões com head = :kw ou :=)
+
+    # Separate kwargs (expressions with head :kw or :=)
     kwargs = filter(x -> x isa Expr && (x.head == :kw || x.head == :(:=)), spawn_args)
     pos_args = filter(x -> !(x isa Expr && (x.head == :kw || x.head == :(:=))), spawn_args)
-    
-    # O corpo do ator é a última expressão
+
+    # Actor body is the last expression
     body = args[end]
-    
-    # Escapar o corpo para que variáveis externas sejam capturadas
+
+    # Escape body so outer variables are captured correctly
     actor_body = esc(body)
-    
-    # Escapar argumentos posicionais e kwargs
+
+    # Escape positional args and kwargs
     escaped_pos_args = [esc(arg) for arg in pos_args]
     escaped_kwargs = [esc(kw) for kw in kwargs]
-    
-    # Construir chamada para spawn(Bhv(...))
+
+    # Build spawn(Bhv(...)) call
     if has_name
-        # Se tem nome, criar variável no escopo do chamador
+        # Named: bind result to a variable in the caller's scope
         var_name = esc(name)
         return quote
             $var_name = Actors.spawn(
@@ -70,7 +67,7 @@ macro spawn(args...)
             )
         end
     else
-        # Se não tem nome, apenas retornar o link
+        # Anonymous: just return the link
         return quote
             Actors.spawn(
                 Actors.Bhv($actor_body, $(escaped_pos_args...); $(escaped_kwargs...))

@@ -42,7 +42,7 @@ send(act2, "boom")
 a2 = diag(changed(act2), :act)
 @test t2[].state == :failed
 @test t1[].state == :runnable
-@test oldch2 != act2.chn
+@test oldch2 == act2.chn  # channel is reused on crash restart (no bind)
 t2[] = diag(act2, :task)
 @test oldtsk != t2[]
 @test t2[].state == :runnable

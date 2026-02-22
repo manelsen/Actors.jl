@@ -64,6 +64,7 @@ function _act(ch::Channel, lk::Union{Nothing,Link}=nothing)
     task_local_storage("_ACT", A)
     while true
         msg = take!(ch)
+        exit_received = msg isa Exit
         if isempty(A.conn)
             onmessage(A, Val(A.mode), msg)
             while isready(ch)
@@ -85,7 +86,7 @@ function _act(ch::Channel, lk::Union{Nothing,Link}=nothing)
                 rethrow()
             end
         end
-        msg isa Exit && !_sticky(A) && break
+        exit_received && !_sticky(A) && break
     end
     isnothing(A.name) || call(_REG, unregister, A.name)
 end
@@ -123,18 +124,44 @@ function Classic.spawn( f, args...; pid=nothing, thrd=false,
     if isnothing(pid)
         lk = newLink(32)
         if thrd > 0 && thrd in 1:nthreads()
-            t = Task(() -> _act(lk.chn, lk))
+            ch = lk.chn
+            t = Task() do
+                try
+                    _act(ch, lk)
+                    close(ch)
+                catch
+                    # On crash: supervised actors keep the channel open for restart;
+                    # unsupervised actors close it so info() can detect the failure.
+                    A = get(task_local_storage(), "_ACT", nothing)
+                    if isnothing(A) || !any(c isa Super for c in A.conn)
+                        close(ch, TaskFailedException(current_task()))
+                    end
+                    rethrow()
+                end
+            end
             t.sticky = true
             # Pin task to the requested thread before scheduling (Julia 1.9+).
             ccall(:jl_set_task_tid, Cvoid, (Any, Cint), t, thrd - 1)
             isnothing(taskref) || (taskref[] = t)
-            bind(lk.chn, t)
             schedule(t)
         else
-            t = Task(() -> _act(lk.chn, lk))
+            ch = lk.chn
+            t = Task() do
+                try
+                    _act(ch, lk)
+                    close(ch)
+                catch
+                    # On crash: supervised actors keep the channel open for restart;
+                    # unsupervised actors close it so info() can detect the failure.
+                    A = get(task_local_storage(), "_ACT", nothing)
+                    if isnothing(A) || !any(c isa Super for c in A.conn)
+                        close(ch, TaskFailedException(current_task()))
+                    end
+                    rethrow()
+                end
+            end
             isnothing(taskref) || (taskref[] = t)
             pid == 1 && (t.sticky = sticky)
-            bind(lk.chn, t)
             schedule(t)
         end
         lk.mode = mode
