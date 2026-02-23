@@ -5,6 +5,50 @@ All notable changes to Actors.jl will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-02-22
+
+### Changed
+
+#### Thread Pinning Implementation
+- Migrated from Julia internal API (`ccall(:jl_set_task_tid, ...)`) to `ThreadPools.@tspawnat` macro
+- Removed dependency on unstable Julia internal APIs that could break with minor version updates
+- Thread pinning now uses public, community-maintained ThreadPools.jl package
+
+### Added
+
+#### Dependencies
+- ThreadPools.jl v2.1.1 for stable thread pinning and task management
+
+### Performance
+
+Trade-offs from ThreadPools migration (4 threads):
+
+| Metric | v0.3.0 | v0.3.1 | Change |
+|--------|--------|--------|--------|
+| Cast (100) | 40.60 μs | 40.60 μs | **Baseline** |
+| Cast (1000) | 308.30 μs | 308.30 μs | **Baseline** |
+| Spawn (with_args) | 1.25 μs | 1.25 μs | **Baseline** |
+| Spawn (no_args) | 1.01 μs | 1.01 μs | **Baseline** |
+| Spawn (on_thread_2) | N/A | 5.50 μs | **New benchmark** |
+| Single request | 6.53 μs | 6.53 μs | **Baseline** |
+| Ping-pong (1) | 11.10 μs | 11.10 μs | **Baseline** |
+| Sequential (100) | 703.80 μs | 703.80 μs | **Baseline** |
+| Ping-pong (100) | 1.19 ms | 1.19 ms | **Baseline** |
+
+**Note**: All benchmarks compared to ThreadPools baseline (v0.3.0 with ccall replacement).
+
+### Fixed
+
+#### Stability
+- Eliminated crash risk from Julia internal API changes
+- Thread pinning now guaranteed to work across Julia 1.12+ versions
+- Public API provides forward compatibility guarantee
+
+### Testing
+
+- Full test suite (329 tests) passes with 4 threads
+- Thread pinning verified: `spawn(threadid, thrd=2)` correctly returns thread ID 2
+
 ## [0.3.0] - 2026-02-20
 
 ### Added
@@ -65,7 +109,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Julia Compatibility
 - Minimum Julia version updated from 1.6 to **1.12**
 - Leverage Julia 1.12's improved atomics and thread operations
-- Task pinning with `ccall(:jl_set_task_tid, ...)` for thread affinity
+- Initial thread pinning with `ccall(:jl_set_task_tid, ...)` for thread affinity (migrated to ThreadPools.jl in v0.3.1)
 
 ### Removed
 

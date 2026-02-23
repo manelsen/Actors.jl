@@ -51,6 +51,7 @@ const version = v"0.3.0"
 
 using ActorInterfaces.Classic
 using Distributed, .Threads, Serialization, Dates
+using ThreadPools
 import ActorInterfaces.Classic: onmessage
 import Base: structdiff
 

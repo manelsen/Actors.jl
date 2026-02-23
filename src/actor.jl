@@ -125,7 +125,7 @@ function Classic.spawn( f, args...; pid=nothing, thrd=false,
         lk = newLink(32)
         if thrd > 0 && thrd in 1:nthreads()
             ch = lk.chn
-            t = Task() do
+            t = ThreadPools.@tspawnat thrd begin
                 try
                     _act(ch, lk)
                     close(ch)
@@ -139,11 +139,7 @@ function Classic.spawn( f, args...; pid=nothing, thrd=false,
                     rethrow()
                 end
             end
-            t.sticky = true
-            # Pin task to the requested thread before scheduling (Julia 1.9+).
-            ccall(:jl_set_task_tid, Cvoid, (Any, Cint), t, thrd - 1)
-            isnothing(taskref) || (taskref[] = t)
-            schedule(t)
+            isnothing(taskref) || (taskref[] = fetch(t))
         else
             ch = lk.chn
             t = Task() do
